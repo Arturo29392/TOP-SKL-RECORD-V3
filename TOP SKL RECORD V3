@@ -1,0 +1,435 @@
+```lua
+-- TopSKL v3 - Garden Tower Defense
+-- Compatible con Delta Executor
+-- Grabador y reproductor completo de acciones
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local Camera = Workspace.CurrentCamera
+
+-- Variables principales
+local RECORDING = false
+local PLAYING = false
+local actions = {}
+local startTime = 0
+local currentIndex = 1
+local loopPlayback = false
+local guiVisible = true
+
+-- GUI Principal - Interfaz móvil
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TopSKL_v3"
+ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Marco principal
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.Parent = MainFrame
+
+-- Barra de título móvil
+local TitleBar = Instance.new("Frame")
+TitleBar.Size = UDim2.new(1, 0, 0, 38)
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 12)
+TitleCorner.Parent = TitleBar
+
+-- Título
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, -80, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "TopSKL v3 - Garden TD"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.Font = Enum.Font.GothamBold
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
+
+-- Botón minimizar
+local MinimizeBtn = Instance.new("TextButton")
+MinimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+MinimizeBtn.Position = UDim2.new(1, -65, 0, 5)
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+MinimizeBtn.Text = "-"
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.TextSize = 18
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.Parent = TitleBar
+
+local MinCorner = Instance.new("UICorner")
+MinCorner.CornerRadius = UDim.new(0, 6)
+MinCorner.Parent = MinimizeBtn
+
+-- Botón cerrar
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -32, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.TextSize = 14
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.Parent = TitleBar
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 6)
+CloseCorner.Parent = CloseBtn
+
+-- Contenido principal
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Size = UDim2.new(1, -20, 1, -45)
+ContentFrame.Position = UDim2.new(0, 10, 0, 42)
+ContentFrame.BackgroundTransparency = 1
+ContentFrame.Parent = MainFrame
+
+-- Botones de control
+local StartBtn = Instance.new("TextButton")
+StartBtn.Size = UDim2.new(0.48, 0, 0, 42)
+StartBtn.Position = UDim2.new(0, 0, 0, 0)
+StartBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+StartBtn.Text = "START RECORDING"
+StartBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StartBtn.TextSize = 13
+StartBtn.Font = Enum.Font.GothamBold
+StartBtn.Parent = ContentFrame
+
+local StartCorner = Instance.new("UICorner")
+StartCorner.CornerRadius = UDim.new(0, 8)
+StartCorner.Parent = StartBtn
+
+local StopBtn = Instance.new("TextButton")
+StopBtn.Size = UDim2.new(0.48, 0, 0, 42)
+StopBtn.Position = UDim2.new(0.52, 0, 0, 0)
+StopBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+StopBtn.Text = "STOP RECORDING"
+StopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+StopBtn.TextSize = 13
+StopBtn.Font = Enum.Font.GothamBold
+StopBtn.Parent = ContentFrame
+
+local StopCorner = Instance.new("UICorner")
+StopCorner.CornerRadius = UDim.new(0, 8)
+StopCorner.Parent = StopBtn
+
+-- Botones de reproducción
+local PlayBtn = Instance.new("TextButton")
+PlayBtn.Size = UDim2.new(0.48, 0, 0, 42)
+PlayBtn.Position = UDim2.new(0, 0, 0, 50)
+PlayBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+PlayBtn.Text = "AUTO PLAY"
+PlayBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayBtn.TextSize = 13
+PlayBtn.Font = Enum.Font.GothamBold
+PlayBtn.Parent = ContentFrame
+
+local PlayCorner = Instance.new("UICorner")
+PlayCorner.CornerRadius = UDim.new(0, 8)
+PlayCorner.Parent = PlayBtn
+
+local LoopBtn = Instance.new("TextButton")
+LoopBtn.Size = UDim2.new(0.48, 0, 0, 42)
+LoopBtn.Position = UDim2.new(0.52, 0, 0, 50)
+LoopBtn.BackgroundColor3 = Color3.fromRGB(120, 50, 180)
+LoopBtn.Text = "LOOP MODE"
+LoopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoopBtn.TextSize = 13
+LoopBtn.Font = Enum.Font.GothamBold
+LoopBtn.Parent = ContentFrame
+
+local LoopCorner = Instance.new("UICorner")
+LoopCorner.CornerRadius = UDim.new(0, 8)
+LoopCorner.Parent = LoopBtn
+
+-- Botones adicionales
+local SaveBtn = Instance.new("TextButton")
+SaveBtn.Size = UDim2.new(0.48, 0, 0, 32)
+SaveBtn.Position = UDim2.new(0, 0, 0, 100)
+SaveBtn.BackgroundColor3 = Color3.fromRGB(70, 140, 200)
+SaveBtn.Text = "SAVE MACRO"
+SaveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SaveBtn.TextSize = 12
+SaveBtn.Font = Enum.Font.GothamBold
+SaveBtn.Parent = ContentFrame
+
+local SaveCorner = Instance.new("UICorner")
+SaveCorner.CornerRadius = UDim.new(0, 8)
+SaveCorner.Parent = SaveBtn
+
+local LoadBtn = Instance.new("TextButton")
+LoadBtn.Size = UDim2.new(0.48, 0, 0, 32)
+LoadBtn.Position = UDim2.new(0.52, 0, 0, 100)
+LoadBtn.BackgroundColor3 = Color3.fromRGB(200, 140, 70)
+LoadBtn.Text = "LOAD MACRO"
+LoadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoadBtn.TextSize = 12
+LoadBtn.Font = Enum.Font.GothamBold
+LoadBtn.Parent = ContentFrame
+
+local LoadCorner = Instance.new("UICorner")
+LoadCorner.CornerRadius = UDim.new(0, 8)
+LoadCorner.Parent = LoadBtn
+
+-- Estado y contador
+local StatusLabel = Instance.new("TextLabel")
+StatusLabel.Size = UDim2.new(1, 0, 0, 22)
+StatusLabel.Position = UDim2.new(0, 0, 0, 140)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "Listo - Presiona START RECORDING"
+StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+StatusLabel.TextSize = 11
+StatusLabel.Font = Enum.Font.Gotham
+StatusLabel.Parent = ContentFrame
+
+local CounterLabel = Instance.new("TextLabel")
+CounterLabel.Size = UDim2.new(1, 0, 0, 18)
+CounterLabel.Position = UDim2.new(0, 0, 0, 162)
+CounterLabel.BackgroundTransparency = 1
+CounterLabel.Text = "Acciones: 0"
+CounterLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+CounterLabel.TextSize = 10
+CounterLabel.Font = Enum.Font.Gotham
+CounterLabel.Parent = ContentFrame
+
+-- Botón flotante para abrir/cerrar
+local FloatBtn = Instance.new("TextButton")
+FloatBtn.Size = UDim2.new(0, 48, 0, 48)
+FloatBtn.Position = UDim2.new(0, 15, 0.75, 0)
+FloatBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+FloatBtn.Text = "TSKL"
+FloatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+FloatBtn.TextSize = 14
+FloatBtn.Font = Enum.Font.GothamBold
+FloatBtn.Visible = false
+FloatBtn.Parent = ScreenGui
+
+local FloatCorner = Instance.new("UICorner")
+FloatCorner.CornerRadius = UDim.new(0, 24)
+FloatCorner.Parent = FloatBtn
+
+-- Función para obtener posición del mundo
+local function getWorldPosition()
+    local ray = Camera:ScreenPointToRay(Mouse.X, Mouse.Y)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    
+    local result = Workspace:Raycast(ray.Origin, ray.Direction * 2000, raycastParams)
+    if result then
+        return result.Position, result.Normal, result.Instance
+    end
+    return nil, nil, nil
+end
+
+-- Función para registrar acción
+local function recordAction(actionType, data)
+    if not RECORDING then return end
+    
+    local currentTime = tick() - startTime
+    table.insert(actions, {
+        time = currentTime,
+        type = actionType,
+        data = data or {}
+    })
+    
+    CounterLabel.Text = "Acciones: " .. #actions
+end
+
+-- Función para reproducir acción
+local function playAction(action)
+    if action.type == "click" then
+        local clickData = action.data
+        if clickData.worldPos then
+            pcall(function()
+                for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                    if remote:IsA("RemoteEvent") then
+                        local name = remote.Name:lower()
+                        if string.find(name, "click") or string.find(name, "place") or string.find(name, "build") then
+                            remote:FireServer(clickData.worldPos, clickData.target, clickData.normal)
+                        end
+                    end
+                end
+            end)
+            
+            pcall(function()
+                local VirtualInputManager = game:GetService("VirtualInputManager")
+                VirtualInputManager:SendMouseButtonEvent(clickData.screenX, clickData.screenY, 0, true, game, 1)
+                wait(0.03)
+                VirtualInputManager:SendMouseButtonEvent(clickData.screenX, clickData.screenY, 0, false, game, 1)
+            end)
+        end
+        
+    elseif action.type == "keypress" then
+        local keyData = action.data
+        pcall(function()
+            local VirtualInputManager = game:GetService("VirtualInputManager")
+            VirtualInputManager:SendKeyEvent(true, keyData.keyCode, false, game)
+            wait(0.03)
+            VirtualInputManager:SendKeyEvent(false, keyData.keyCode, false, game)
+        end)
+        
+    elseif action.type == "upgrade" then
+        pcall(function()
+            for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                if gui:IsA("TextButton") and gui.Visible then
+                    local text = gui.Text:lower()
+                    if string.find(text, "upgrade") or string.find(text, "mejorar") or string.find(text, "level") then
+                        gui.MouseButton1Click:Fire()
+                    end
+                end
+            end
+        end)
+        
+    elseif action.type == "sell" then
+        pcall(function()
+            for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                if gui:IsA("TextButton") and gui.Visible then
+                    local text = gui.Text:lower()
+                    if string.find(text, "sell") or string.find(text, "vender") then
+                        gui.MouseButton1Click:Fire()
+                    end
+                end
+            end
+        end)
+        
+    elseif action.type == "place_unit" then
+        local unitData = action.data
+        if unitData.unitName and unitData.worldPos then
+            pcall(function()
+                for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                    if remote:IsA("RemoteEvent") then
+                        local name = remote.Name:lower()
+                        if string.find(name, "place") or string.find(name, "spawn") or string.find(name, "buy") then
+                            remote:FireServer(unitData.unitName, unitData.worldPos)
+                        end
+                    end
+                end
+            end)
+        end
+        
+    elseif action.type == "remove_unit" then
+        pcall(function()
+            for _, gui in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
+                if gui:IsA("TextButton") and gui.Visible then
+                    local text = gui.Text:lower()
+                    if string.find(text, "remove") or string.find(text, "quitar") or string.find(text, "delete") then
+                        gui.MouseButton1Click:Fire()
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- Funciones de control
+local function startRecording()
+    RECORDING = true
+    PLAYING = false
+    actions = {}
+    startTime = tick()
+    
+    StatusLabel.Text = "GRABANDO..."
+    StatusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    CounterLabel.Text = "Acciones: 0"
+    
+    StartBtn.BackgroundColor3 = Color3.fromRGB(30, 120, 30)
+    StartBtn.Text = "GRABANDO..."
+end
+
+local function stopRecording()
+    RECORDING = false
+    StatusLabel.Text = "Grabación detenida - " .. #actions .. " acciones"
+    StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    StartBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+    StartBtn.Text = "START RECORDING"
+end
+
+local function startPlayback()
+    if #actions == 0 then
+        StatusLabel.Text = "No hay acciones guardadas"
+        return
+    end
+    
+    PLAYING = true
+    currentIndex = 1
+    StatusLabel.Text = "REPRODUCIENDO..."
+    StatusLabel.TextColor3 = Color3.fromRGB(100, 200, 255)
+    PlayBtn.BackgroundColor3 = Color3.fromRGB(30, 80, 140)
+    PlayBtn.Text = "PAUSA"
+    
+    spawn(function()
+        repeat
+            while PLAYING and currentIndex <= #actions do
+                local action = actions[currentIndex]
+                local waitTime = 0
+                
+                if currentIndex > 1 then
+                    waitTime = action.time - actions[currentIndex - 1].time
+                else
+                    waitTime = action.time
+                end
+                
+                if waitTime > 0 then
+                    wait(waitTime)
+                end
+                
+                if PLAYING then
+                    playAction(action)
+                    currentIndex = currentIndex + 1
+                    StatusLabel.Text = "Reproduciendo... (" .. currentIndex .. "/" .. #actions .. ")"
+                end
+            end
+            
+            if loopPlayback and PLAYING then
+                currentIndex = 1
+                wait(0.5)
+            end
+        until not loopPlayback or not PLAYING
+        
+        if not PLAYING then
+            StatusLabel.Text = "Reproducción pausada"
+        else
+            StatusLabel.Text = "Reproducción completada"
+            PLAYING = false
+        end
+        
+        PlayBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+        PlayBtn.Text = "AUTO PLAY"
+    end)
+end
+
+local function pausePlayback()
+    PLAYING = false
+    StatusLabel.Text = "Pausado - " .. currentIndex .. "/" .. #actions
+    StatusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    PlayBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 200)
+    PlayBtn.Text = "AUTO PLAY"
+end
+
+local function toggleLoop()
+    loopPlayback = not loopPlayback
+    if loopPlayback then
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(80, 30, 120)
+        LoopBtn.Text = "LOOP ON"
+    else
+        LoopBtn.BackgroundColor3 = Color3.fromRGB(120, 50, 180)
+        LoopBtn.Text = "LOOP MODE"
